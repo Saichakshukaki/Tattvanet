@@ -21,9 +21,16 @@ FILE: script.js
 <code>
 """
     res = requests.post(HF_API, headers=HEADERS, json={"inputs": prompt})
-    print("Status code:", res.status_code)
-    print("Response headers:", res.headers)
-    print("Response text:", res.text)
+
+    # Save response text to a file for debugging
+    with open("hf_response.txt", "w") as f:
+        f.write(f"Status code: {res.status_code}\n")
+        f.write(f"Response headers: {res.headers}\n")
+        f.write(f"Response text: {res.text}\n")
+
+    if res.status_code != 200:
+        raise Exception(f"API returned status code {res.status_code}")
+
     try:
         output = res.json()
         return output[0]['generated_text']
