@@ -4,11 +4,11 @@ import os
 from datetime import datetime
 import base64
 
-# ✅ Hugging Face Inference API setup
+# ✅ Hugging Face API setup
 HF_API = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1"
 HEADERS = {"Authorization": f"Bearer {os.environ['HF_TOKEN']}"}
 
-# ✅ GitHub details
+# ✅ GitHub setup
 GITHUB_USER = "Saichakshukaki"
 GITHUB_TOKEN = os.environ["GH_TOKEN"]
 
@@ -28,21 +28,19 @@ FILE: style.css
 FILE: script.js
 // js here
 """
-
     res = requests.post(HF_API, headers=HEADERS, json={"inputs": prompt})
 
     print("Status Code:", res.status_code)
     print("Response Preview:", res.text[:500])
 
     if res.status_code != 200:
-        raise Exception(f"Hugging Face API error: {res.status_code} - {res.text}")
+        raise Exception(f"Hugging Face API error: {res.status_code}\nResponse: {res.text}")
 
     try:
         output = res.json()
         return output[0]["generated_text"]
     except Exception as e:
-        print("Failed to parse Hugging Face response:", e)
-        raise
+        raise Exception(f"Failed to parse Hugging Face response: {e}\nFull response text: {res.text}")
 
 def parse_output(raw):
     files = {}
@@ -84,6 +82,8 @@ def update_dashboard(repo_name):
     url = f"https://{GITHUB_USER}.github.io/{repo_name}/"
     path = "dashboard/sites.json"
 
+    os.makedirs("dashboard", exist_ok=True)
+
     if os.path.exists(path):
         with open(path, "r") as f:
             data = json.load(f)
@@ -92,7 +92,6 @@ def update_dashboard(repo_name):
 
     data.append({"name": repo_name, "url": url})
 
-    os.makedirs("dashboard", exist_ok=True)
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
 
@@ -103,4 +102,3 @@ if __name__ == "__main__":
     create_repo(repo_name)
     push_files(repo_name, files)
     update_dashboard(repo_name)
-
