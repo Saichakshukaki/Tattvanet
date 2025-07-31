@@ -3,7 +3,8 @@ import json
 import os
 from datetime import datetime
 
-HF_API = "https://api-inference.huggingface.co/models/tiiuae/falcon-7b-instruct"
+# ✅ Updated model (smaller and free-tier friendly)
+HF_API = "https://api-inference.huggingface.co/models/google/flan-t5-large"
 HEADERS = {"Authorization": f"Bearer {os.environ['HF_TOKEN']}"}
 
 GITHUB_USER = "Saichakshukaki"
@@ -21,7 +22,14 @@ FILE: script.js
 <code>
 """
     res = requests.post(HF_API, headers=HEADERS, json={"inputs": prompt})
-    return res.json()[0]['generated_text']
+    
+    try:
+        output = res.json()
+        return output[0]['generated_text']
+    except Exception as e:
+        print("Hugging Face API error:", e)
+        print("Raw response:", res.text)
+        raise
 
 def parse_output(raw):
     files = {}
