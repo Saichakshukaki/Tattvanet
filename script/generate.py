@@ -22,6 +22,10 @@ FILE: script.js
 """
     res = requests.post(HF_API, headers=HEADERS, json={"inputs": prompt})
 
+    # Print debug info
+    print("Status code:", res.status_code)
+    print("Response text:", repr(res.text))  # repr to show raw format including empty
+
     # Save response text to a file for debugging
     with open("hf_response.txt", "w") as f:
         f.write(f"Status code: {res.status_code}\n")
