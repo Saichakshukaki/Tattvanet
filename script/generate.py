@@ -9,7 +9,7 @@ from datetime import datetime
 # -- CONFIGURATION --
 
 # Replace this with your actual Hugging Face model API URL!
-HF_API = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1"
+HF_API = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
 
 # Get tokens from environment variables (make sure these are set)
 HF_TOKEN = os.environ.get("HF_TOKEN")
