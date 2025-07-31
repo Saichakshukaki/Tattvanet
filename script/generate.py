@@ -3,7 +3,8 @@ import json
 import os
 from datetime import datetime
 
-HF_API = "https://api-inference.huggingface.co/models/google/flan-t5-large"
+# Updated model endpoint (public, supports text generation)
+HF_API = "https://api-inference.huggingface.co/models/tiiuae/falcon-7b-instruct"
 HEADERS = {"Authorization": f"Bearer {os.environ['HF_TOKEN']}"}
 
 GITHUB_USER = "Saichakshukaki"
@@ -24,7 +25,7 @@ FILE: script.js
 
     # Print debug info
     print("Status code:", res.status_code)
-    print("Response text:", repr(res.text))  # repr to show raw format including empty
+    print("Response text:", repr(res.text))  # repr shows raw content including empty
 
     # Save response text to a file for debugging
     with open("hf_response.txt", "w") as f:
