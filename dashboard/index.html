@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tattvanet Dashboard</title>
+</head>
+<body>
+  <h1>AI-Generated Websites</h1>
+  <ul id="list"></ul>
+  <script>
+    fetch('sites.json')
+      .then(res => res.json())
+      .then(data => {
+        const ul = document.getElementById('list');
+        data.forEach(site => {
+          const li = document.createElement('li');
+          li.innerHTML = `<a href="${site.url}" target="_blank">${site.name}</a>`;
+          ul.appendChild(li);
+        });
+      });
+  </script>
+</body>
+</html>
