@@ -8,7 +8,7 @@ def ask_ai(prompt):
     HF_TOKEN = os.getenv("HF_TOKEN")
     if not HF_TOKEN:
         raise Exception("Hugging Face token (HF_TOKEN) not found in environment variables.")
-    API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
+    API_URL = "https://api-inference.huggingface.co/models/tiiuae/falcon-7b-instruct"
 
     headers = {
         "Authorization": f"Bearer {HF_TOKEN}",
@@ -28,19 +28,12 @@ def ask_ai(prompt):
         elif res.status_code != 200:
             raise Exception(f"API returned status code {res.status_code}: {res.text}")
 
-        # Parse output: Hugging Face can return a list or dict
-        try:
-            response_json = res.json()
-        except Exception as e:
-            raise Exception(f"Failed to parse JSON response: {e}")
-
-        # Typical response: [{'generated_text': '...'}]
+        response_json = res.json()
         if isinstance(response_json, list) and 'generated_text' in response_json[0]:
             return response_json[0]['generated_text']
         elif isinstance(response_json, dict) and 'generated_text' in response_json:
             return response_json['generated_text']
         else:
-            # Try to extract first string value
             for v in response_json.values():
                 if isinstance(v, str):
                     return v
@@ -76,7 +69,6 @@ def create_github_repo(repo_name, files):
     owner = repo_info["owner"]["login"]
     repo = repo_info["name"]
 
-    # Create files by committing directly to the default branch (main)
     for fname, content in files.items():
         file_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{fname}"
         file_data = {
@@ -112,16 +104,12 @@ def main():
     prompt = "Generate HTML, CSS, and JavaScript code for a modern personal website. Output the files clearly separated."
     website_code = ask_ai(prompt)
 
-    # Split the generated text into files
-    # You may need to improve this parsing depending on model output format
     index_html, style_css, script_js = "", "", ""
-    # Simple parser: look for markers
     if "<html" in website_code and "<style" in website_code and "<script" in website_code:
         index_html = website_code.split("<style")[0]
         style_css = "<style" + website_code.split("<style")[1].split("</style>")[0] + "</style>"
         script_js = "<script" + website_code.split("<script")[1].split("</script>")[0] + "</script>"
     else:
-        # fallback: assign all to index.html
         index_html = website_code
 
     files = {
