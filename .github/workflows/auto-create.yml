@@ -2,14 +2,15 @@ name: Daily Autonomous Site Builder
 
 on:
   schedule:
-    - cron: '0 0 * * *' # every day at midnight UTC
-  workflow_dispatch: # allows manual trigger too
+    - cron: '0 0 * * *'  # Every day at midnight UTC
+  workflow_dispatch:      # Manual trigger via GitHub UI
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -18,10 +19,20 @@ jobs:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: pip install requests
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
 
-      - name: Run website generator
+      - name: Run autonomous site builder script
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: python script/generate.py
+        run: |
+          python script/generate.py
+
+      - name: Upload dashboard (optional backup step)
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: dashboard-backup
+          path: dashboard/sites.json
