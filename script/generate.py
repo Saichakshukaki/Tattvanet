@@ -8,8 +8,10 @@ def ask_ai(prompt):
     HF_TOKEN = os.getenv("HF_TOKEN")
     if not HF_TOKEN:
         raise Exception("Hugging Face token (HF_TOKEN) not found in environment variables.")
-    
-    API_URL = "https://api-inference.huggingface.co/models/EleutherAI/gpt-j-6B"
+
+    # PATCH: Get model name from environment, fallback to EleutherAI/gpt-j-6B
+    HF_MODEL = os.getenv("HF_MODEL", "EleutherAI/gpt-j-6B")
+    API_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
 
     headers = {
         "Authorization": f"Bearer {HF_TOKEN}",
@@ -23,13 +25,12 @@ def ask_ai(prompt):
         print(f"[DEBUG] Hugging Face API returned status code {res.status_code}")
         print(f"[DEBUG] Response preview: {res.text[:200]}")
         if res.status_code == 404:
-            raise Exception(f"Model not found at {API_URL} (404). Check model name and endpoint.")
+            raise Exception(f"Model not found at {API_URL} (404). Check model name and endpoint. See https://huggingface.co/models for valid models.")
         elif res.status_code == 401:
             raise Exception("Unauthorized (401). Check HF_TOKEN.")
         elif res.status_code != 200:
             raise Exception(f"API returned status code {res.status_code}: {res.text}")
 
-        # Parse output
         try:
             response_json = res.json()
         except Exception as e:
@@ -77,7 +78,6 @@ def create_github_repo(repo_name, files):
     owner = repo_info["owner"]["login"]
     repo = repo_info["name"]
 
-    # Create files by committing directly to the default branch (main)
     for fname, content in files.items():
         file_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{fname}"
         file_data = {
