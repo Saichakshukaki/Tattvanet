@@ -1,119 +1,143 @@
+import os
 import requests
 import json
-import os
-from datetime import datetime
 import base64
+from datetime import datetime
 
-# ✅ Hugging Face API setup — using working model
-HF_API = "https://api-inference.huggingface.co/models/google/flan-t5-large"
-HEADERS = {"Authorization": f"Bearer {os.environ['HF_TOKEN']}"}
+def ask_ai(prompt):
+    HF_TOKEN = os.getenv("HF_TOKEN")
+    if not HF_TOKEN:
+        raise Exception("Hugging Face token (HF_TOKEN) not found in environment variables.")
+    API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
 
-# ✅ GitHub setup
-GITHUB_USER = "Saichakshukaki"
-GITHUB_TOKEN = os.environ["GH_TOKEN"]
+    headers = {
+        "Authorization": f"Bearer {HF_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {"inputs": prompt}
 
-# ✅ Ask Hugging Face AI to generate a website idea + code
-def ask_ai():
-    prompt = """
-Come up with a unique, human-useful website idea (like a game, calculator, visualizer, or productivity tool).
-Then give the full working code in this format:
-
-FILE: index.html
-<html>
-<!-- html here -->
-</html>
-
-FILE: style.css
-/* css here */
-
-FILE: script.js
-// js here
-"""
+    print(f"[DEBUG] Sending POST to {API_URL} with payload: {payload}")
     try:
-        res = requests.post(HF_API, headers=HEADERS, json={"inputs": prompt})
-        print("Status Code:", res.status_code)
-        print("Response Preview:", res.text[:500])
-        res.raise_for_status()
-        output = res.json()
-        if isinstance(output, list) and "generated_text" in output[0]:
-            return output[0]["generated_text"]
-        elif isinstance(output, dict) and "generated_text" in output:
-            return output["generated_text"]
-        elif isinstance(output, dict) and "text" in output:
-            return output["text"]
+        res = requests.post(API_URL, headers=headers, data=json.dumps(payload))
+        print(f"[DEBUG] Hugging Face API returned status code {res.status_code}")
+        print(f"[DEBUG] Response preview: {res.text[:200]}")
+        if res.status_code == 404:
+            raise Exception(f"Model not found at {API_URL} (404). Check model name and endpoint.")
+        elif res.status_code == 401:
+            raise Exception("Unauthorized (401). Check HF_TOKEN.")
+        elif res.status_code != 200:
+            raise Exception(f"API returned status code {res.status_code}: {res.text}")
+
+        # Parse output: Hugging Face can return a list or dict
+        try:
+            response_json = res.json()
+        except Exception as e:
+            raise Exception(f"Failed to parse JSON response: {e}")
+
+        # Typical response: [{'generated_text': '...'}]
+        if isinstance(response_json, list) and 'generated_text' in response_json[0]:
+            return response_json[0]['generated_text']
+        elif isinstance(response_json, dict) and 'generated_text' in response_json:
+            return response_json['generated_text']
         else:
-            raise ValueError(f"Unexpected Hugging Face API response structure: {output}")
-    except requests.exceptions.RequestException as e:
-        print("RequestException:", e)
-        print("Full Response Text:", res.text if 'res' in locals() else '')
-        raise
+            # Try to extract first string value
+            for v in response_json.values():
+                if isinstance(v, str):
+                    return v
+            raise Exception(f"Unexpected response format: {response_json}")
     except Exception as e:
-        print("Exception:", e)
-        print("Full Response Text:", res.text if 'res' in locals() else '')
+        print(f"[ERROR] {e}")
         raise
 
-# ✅ Parse the AI's output into separate code files
-def parse_output(raw):
-    files = {}
-    current_file = None
-    for line in raw.splitlines():
-        if line.startswith("FILE: "):
-            current_file = line[6:].strip()
-            files[current_file] = ""
-        elif current_file:
-            files[current_file] += line + "\n"
-    return files
+def create_github_repo(repo_name, files):
+    GH_TOKEN = os.getenv("GH_TOKEN")
+    if not GH_TOKEN:
+        raise Exception("GitHub token (GH_TOKEN) not found in environment variables.")
 
-# ✅ Create new GitHub repository
-def create_repo(name):
-    url = "https://api.github.com/user/repos"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-    payload = {"name": name, "auto_init": True}
-    response = requests.post(url, headers=headers, json=payload)
+    api_url = "https://api.github.com/user/repos"
+    headers = {
+        "Authorization": f"token {GH_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    data = {
+        "name": repo_name,
+        "auto_init": False,
+        "private": False
+    }
 
-    if response.status_code not in [200, 201]:
-        raise Exception(f"GitHub repo creation failed: {response.status_code} - {response.text}")
+    print(f"[DEBUG] Creating GitHub repo: {repo_name}")
+    resp = requests.post(api_url, headers=headers, json=data)
+    print(f"[DEBUG] GitHub API returned status code {resp.status_code}")
+    print(f"[DEBUG] Response preview: {resp.text[:200]}")
+    if resp.status_code != 201:
+        raise Exception(f"Failed to create repo: {resp.status_code} {resp.text}")
 
-# ✅ Push files into that repo
-def push_files(repo, files):
-    for filename, content in files.items():
-        url = f"https://api.github.com/repos/{GITHUB_USER}/{repo}/contents/{filename}"
-        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-        content_b64 = base64.b64encode(content.encode()).decode()
+    repo_info = resp.json()
+    owner = repo_info["owner"]["login"]
+    repo = repo_info["name"]
 
-        data = {
-            "message": f"Add {filename}",
-            "content": content_b64,
+    # Create files by committing directly to the default branch (main)
+    for fname, content in files.items():
+        file_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{fname}"
+        file_data = {
+            "message": f"Add {fname}",
+            "content": base64.b64encode(content.encode("utf-8")).decode("utf-8"),
             "branch": "main"
         }
+        print(f"[DEBUG] Creating file {fname} in repo {repo}")
+        file_resp = requests.put(file_url, headers=headers, json=file_data)
+        print(f"[DEBUG] Status: {file_resp.status_code}, Preview: {file_resp.text[:200]}")
+        if file_resp.status_code not in [201, 200]:
+            raise Exception(f"Failed to create file {fname}: {file_resp.status_code} {file_resp.text}")
+    return f"https://github.com/{owner}/{repo}"
 
-        response = requests.put(url, headers=headers, json=data)
-        if response.status_code not in [200, 201]:
-            raise Exception(f"Failed to push file {filename}: {response.status_code} - {response.text}")
-
-# ✅ Update your GitHub Pages dashboard
-def update_dashboard(repo_name):
-    url = f"https://{GITHUB_USER}.github.io/{repo_name}/"
-    path = "dashboard/sites.json"
-
-    os.makedirs("dashboard", exist_ok=True)
-
-    if os.path.exists(path):
-        with open(path, "r") as f:
-            data = json.load(f)
+def update_dashboard(repo_url):
+    dashboard_path = "dashboard/sites.json"
+    print(f"[DEBUG] Updating dashboard {dashboard_path} with new repo URL: {repo_url}")
+    if os.path.exists(dashboard_path):
+        with open(dashboard_path, "r") as f:
+            try:
+                sites = json.load(f)
+            except Exception:
+                sites = []
     else:
-        data = []
+        sites = []
 
-    data.append({"name": repo_name, "url": url})
+    sites.append({"url": repo_url, "date": datetime.utcnow().strftime("%Y-%m-%d")})
+    with open(dashboard_path, "w") as f:
+        json.dump(sites, f, indent=2)
 
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2)
+def main():
+    print("[INFO] Starting autonomous site builder")
+    prompt = "Generate HTML, CSS, and JavaScript code for a modern personal website. Output the files clearly separated."
+    website_code = ask_ai(prompt)
 
-# ✅ Main script runner
+    # Split the generated text into files
+    # You may need to improve this parsing depending on model output format
+    index_html, style_css, script_js = "", "", ""
+    # Simple parser: look for markers
+    if "<html" in website_code and "<style" in website_code and "<script" in website_code:
+        index_html = website_code.split("<style")[0]
+        style_css = "<style" + website_code.split("<style")[1].split("</style>")[0] + "</style>"
+        script_js = "<script" + website_code.split("<script")[1].split("</script>")[0] + "</script>"
+    else:
+        # fallback: assign all to index.html
+        index_html = website_code
+
+    files = {
+        "index.html": index_html.strip(),
+        "style.css": style_css.replace("<style>", "").replace("</style>", "").strip(),
+        "script.js": script_js.replace("<script>", "").replace("</script>", "").strip(),
+    }
+
+    repo_name = "site-" + datetime.utcnow().strftime("%Y%m%d")
+    repo_url = create_github_repo(repo_name, files)
+    update_dashboard(repo_url)
+    print(f"[INFO] Successfully created site repo: {repo_url}")
+
 if __name__ == "__main__":
-    raw_output = ask_ai()
-    files = parse_output(raw_output)
-    repo_name = f"site-{datetime.now().strftime('%Y%m%d')}"
-    create_repo(repo_name)
-    push_files(repo_name, files)
-    update_dashboard(repo_name)
+    try:
+        main()
+    except Exception as e:
+        print(f"[ERROR] Script failed: {e}")
+        exit(1)
