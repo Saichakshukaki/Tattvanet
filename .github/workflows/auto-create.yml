@@ -27,8 +27,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_MODEL: bigcode/starcoder2-3b
         run: |
           python script/generate.py
+
+      - name: Ensure dashboard/sites.json exists (optional)
+        run: |
+          mkdir -p dashboard
+          touch dashboard/sites.json
 
       - name: Upload dashboard (optional backup step)
         if: always()
