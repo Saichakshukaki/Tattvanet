@@ -9,8 +9,8 @@ def ask_ai(prompt):
     if not HF_TOKEN:
         raise Exception("Hugging Face token (HF_TOKEN) not found in environment variables.")
 
-    # PATCH: Get model name from environment, fallback to EleutherAI/gpt-j-6B
-    HF_MODEL = os.getenv("HF_MODEL", "EleutherAI/gpt-j-6B")
+    # You can set HF_MODEL in your environment, defaults to StarCoder2 (good for code generation)
+    HF_MODEL = os.getenv("HF_MODEL", "bigcode/starcoder2-3b")
     API_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
 
     headers = {
@@ -78,6 +78,7 @@ def create_github_repo(repo_name, files):
     owner = repo_info["owner"]["login"]
     repo = repo_info["name"]
 
+    # Create files by committing directly to the default branch (main)
     for fname, content in files.items():
         file_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{fname}"
         file_data = {
